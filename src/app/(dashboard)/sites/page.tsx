@@ -4,8 +4,9 @@ import { getOrgContext } from '@/lib/auth-utils';
 import { eq } from 'drizzle-orm';
 import { SiteWBSWrapper } from '@/components/SiteWBSWrapper';
 
-export default async function SitesPage() {
+export default async function SitesPage({ searchParams }: { searchParams: Promise<{ projectId?: string }> }) {
   const { orgId } = await getOrgContext();
+  const { projectId } = await searchParams;
 
   const allSites = await db
     .select()
@@ -35,10 +36,11 @@ export default async function SitesPage() {
       </div>
 
       <SiteWBSWrapper
-        sites={allSites as unknown as { id: string; name: string; siteCode: string | null; status: string }[]}
+        sites={allSites as unknown as { id: string; name: string; siteCode: string | null; projectId: string; status: string }[]}
         workfronts={allWorkfronts as unknown as { id: string; siteId: string; name: string; levelType: string; parentId: string | null; status: string }[]}
         activities={allActivities as unknown as { id: string; siteId: string; workfrontId: string; costCodeId: string | null; name: string; plannedQty: string | null; uom: string; status: string; completionPct: string }[]}
         costCodes={allCostCodes as unknown as { id: string; code: string; description: string }[]}
+        initialProjectId={projectId}
       />
     </div>
   );

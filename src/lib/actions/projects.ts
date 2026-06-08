@@ -146,3 +146,29 @@ export async function createActivity(data: unknown) {
   return newActivity;
 }
 
+export async function updateProject(id: string, data: unknown) {
+  const { orgId } = await getOrgContext();
+  const validated = projectSchema.parse(data);
+
+  const [updatedProject] = await db.update(projects)
+    .set({
+      name: validated.name,
+      code: validated.code,
+      clientName: validated.clientName,
+      contractValue: validated.contractValue,
+      status: validated.status,
+      startDate: validated.startDate,
+      endDate: validated.endDate,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(projects.id, id), eq(projects.orgId, orgId)))
+    .returning();
+
+  await invalidateCache(`org:${orgId}:projects`);
+  await invalidateCache(`org:${orgId}:dashboard:stats`);
+  await invalidateCache(`org:${orgId}:reports:bva`);
+
+  revalidatePath('/projects');
+  return updatedProject;
+}
+

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ProjectForm } from '@/components/forms/ProjectForm';
 import { Button } from '@/components/ui/button';
 import { GlassPanel } from '@/components/ui/glass-panel';
@@ -27,6 +28,7 @@ interface ProjectListWrapperProps {
 
 export function ProjectListWrapper({ initialProjects }: ProjectListWrapperProps) {
   const [showForm, setShowForm] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const { data: projectsList = [] } = useQuery<Project[]>({
     queryKey: ['projects'],
@@ -64,17 +66,30 @@ export function ProjectListWrapper({ initialProjects }: ProjectListWrapperProps)
           <p className="text-slate-400 mt-1 text-sm font-medium">Manage scope, schedule, and contract values across sites</p>
         </div>
         <Button 
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (editingProject) {
+              setEditingProject(null);
+              setShowForm(false);
+            } else {
+              setShowForm(!showForm);
+            }
+          }}
           className="active:scale-[0.98] transition-transform flex items-center gap-2 shadow-lg"
         >
           <Plus className="w-4 h-4" />
-          {showForm ? 'Cancel' : 'New Project'}
+          {showForm || editingProject ? 'Cancel' : 'New Project'}
         </Button>
       </div>
 
-      {showForm && (
+      {(showForm || editingProject) && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-          <ProjectForm onSuccess={() => setShowForm(false)} />
+          <ProjectForm 
+            initialData={editingProject || undefined}
+            onSuccess={() => {
+              setShowForm(false);
+              setEditingProject(null);
+            }} 
+          />
         </div>
       )}
 
@@ -136,8 +151,19 @@ export function ProjectListWrapper({ initialProjects }: ProjectListWrapperProps)
               </div>
 
               <div className="mt-6 pt-4 border-t border-white/5 flex gap-3">
-                <Button variant="outline" className="flex-1 text-xs py-1 h-8.5 rounded-lg">View Details</Button>
-                <Button variant="outline" className="flex-1 text-xs py-1 h-8.5 rounded-lg">Edit</Button>
+                <Link href={`/sites?projectId=${project.id}`} className="flex-1">
+                  <Button variant="outline" className="w-full text-xs py-1 h-8.5 rounded-lg">View Details</Button>
+                </Link>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingProject(project);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex-1 text-xs py-1 h-8.5 rounded-lg"
+                >
+                  Edit
+                </Button>
               </div>
             </GlassPanel>
           );
@@ -154,4 +180,3 @@ export function ProjectListWrapper({ initialProjects }: ProjectListWrapperProps)
     </div>
   );
 }
-

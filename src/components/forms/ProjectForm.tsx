@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { projectSchema } from '@/lib/validations';
-import { createProject } from '@/lib/actions/projects';
+import { createProject, updateProject } from '@/lib/actions/projects';
 import { Button } from '@/components/ui/button';
 import { GlassPanel } from '@/components/ui/glass-panel';
 import { z } from 'zod';
@@ -11,12 +11,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 
-interface ProjectFormProps {
-  onSuccess?: () => void;
+interface Project {
+  id: string;
+  name: string;
+  code: string | null;
+  clientName: string | null;
+  contractValue: string | null;
+  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+  startDate: string | null;
+  endDate: string | null;
 }
 
-export function ProjectForm({ onSuccess }: ProjectFormProps) {
+interface ProjectFormProps {
+  onSuccess?: () => void;
+  initialData?: Project;
+}
+
+export function ProjectForm({ onSuccess, initialData }: ProjectFormProps) {
   const queryClient = useQueryClient();
+  const isEdit = !!initialData;
+
   const {
     register,
     handleSubmit,
@@ -25,12 +39,23 @@ export function ProjectForm({ onSuccess }: ProjectFormProps) {
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
-      status: 'planning',
+      name: initialData?.name || '',
+      code: initialData?.code || '',
+      clientName: initialData?.clientName || '',
+      contractValue: initialData?.contractValue || '',
+      status: initialData?.status || 'planning',
+      startDate: initialData?.startDate || '',
+      endDate: initialData?.endDate || '',
     },
   });
 
   const mutation = useMutation({
-    mutationFn: createProject,
+    mutationFn: (data: ProjectFormValues) => {
+      if (isEdit && initialData) {
+        return updateProject(initialData.id, data);
+      }
+      return createProject(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       reset();
@@ -41,7 +66,6 @@ export function ProjectForm({ onSuccess }: ProjectFormProps) {
   async function onSubmit(data: ProjectFormValues) {
     mutation.mutate(data);
   }
-
 
   return (
     <GlassPanel className="p-6">
@@ -125,7 +149,7 @@ export function ProjectForm({ onSuccess }: ProjectFormProps) {
             className="w-full active:scale-[0.98] transition-transform"
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? 'Creating...' : 'Create Project'}
+            {mutation.isPending ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Project')}
           </Button>
         </div>
       </form>

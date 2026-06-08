@@ -31,6 +31,7 @@ interface Activity {
 
 interface Site {
   id: string;
+  projectId: string;
   name: string;
   siteCode: string | null;
   status: string;
@@ -47,9 +48,10 @@ interface SiteWBSWrapperProps {
   workfronts: Workfront[];
   activities: Activity[];
   costCodes: CostCode[];
+  initialProjectId?: string;
 }
 
-export function SiteWBSWrapper({ sites, workfronts, activities, costCodes }: SiteWBSWrapperProps) {
+export function SiteWBSWrapper({ sites, workfronts, activities, costCodes, initialProjectId }: SiteWBSWrapperProps) {
   const queryClient = useQueryClient();
 
   const { data: sitesList = [] } = useQuery<Site[]>({
@@ -91,12 +93,19 @@ export function SiteWBSWrapper({ sites, workfronts, activities, costCodes }: Sit
   const [actUom, setActUom] = useState('CUM');
   const [actCostCode, setActCostCode] = useState('');
 
-  // Sync state if sitesList updates from empty to loaded (e.g. after seed)
+  // Sync state if sitesList updates from empty to loaded (e.g. after seed) or if initialProjectId is provided
   useEffect(() => {
+    if (initialProjectId) {
+      const projectSites = sitesList.filter(s => s.projectId === initialProjectId);
+      if (projectSites.length > 0) {
+        setSelectedSiteId(projectSites[0].id);
+        return;
+      }
+    }
     if (!selectedSiteId && sitesList.length > 0) {
       setSelectedSiteId(sitesList[0].id);
     }
-  }, [sitesList, selectedSiteId]);
+  }, [sitesList, selectedSiteId, initialProjectId]);
 
   const selectedSite = sitesList.find(s => s.id === selectedSiteId);
   const siteWorkfronts = workfrontsList.filter(w => w.siteId === selectedSiteId);
