@@ -206,9 +206,13 @@ export const purchaseRequisitions = pgTable("purchase_requisitions", {
   orgId: uuid("org_id").notNull().references(() => organizations.id),
   siteId: uuid("site_id").notNull().references(() => sites.id),
   prNumber: text("pr_number").notNull(),
+  requestedBy: uuid("requested_by").notNull().references(() => profiles.id),
+  requiredDate: date("required_date"),
+  priority: text("priority").notNull().default("normal"),
   status: prStatusEnum("status").notNull().default("draft"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 export const prItems = pgTable("pr_items", {
@@ -270,6 +274,7 @@ export const inventoryLedger = pgTable("inventory_ledger", {
   id: uuid("id").primaryKey().defaultRandom(),
   orgId: uuid("org_id").notNull().references(() => organizations.id),
   siteId: uuid("site_id").notNull().references(() => sites.id),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
   itemId: uuid("item_id").notNull().references(() => items.id),
   transactionType: text("transaction_type").notNull(), // RECEIPT|ISSUE|RETURN
   qty: numeric("qty", { precision: 14, scale: 3 }).notNull(),

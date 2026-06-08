@@ -42,6 +42,7 @@ export default async function FinancePage() {
   const invs = await db
     .select({
       id: invoices.id,
+      vendorId: invoices.vendorId,
       invoiceNumber: invoices.invoiceNumber,
       invoiceDate: invoices.invoiceDate,
       referenceType: invoices.referenceType,
@@ -84,7 +85,7 @@ export default async function FinancePage() {
 
       <FinanceWrapper
         mbs={mbs as unknown as { id: string; mbNumber: string; periodStart: string; periodEnd: string; status: string; netPayable: string; siteName: string; vendorName: string }[]}
-        invoices={invs as unknown as { id: string; invoiceNumber: string; invoiceDate: string; referenceType: string; subtotal: string; cgstAmount: string; sgstAmount: string; tdsAmount: string; totalAmount: string; amountPaid: string; status: string; paymentStatus: string; vendorName: string }[]}
+        invoices={invs as unknown as { id: string; vendorId: string; invoiceNumber: string; invoiceDate: string; referenceType: string; subtotal: string; cgstAmount: string; sgstAmount: string; tdsAmount: string; totalAmount: string; amountPaid: string; status: string; paymentStatus: string; vendorName: string }[]}
         workOrders={workOrders as unknown as { id: string; woNumber: string; scopeOfWork: string; contractValue: string; vendorName: string }[]}
         vendors={allVendors as unknown as { id: string; name: string }[]}
         sites={allSites as unknown as { id: string; name: string }[]}

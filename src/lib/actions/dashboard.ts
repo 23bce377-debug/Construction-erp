@@ -43,12 +43,18 @@ export async function getDashboardStats() {
       .orderBy(desc(sites.createdAt))
       .limit(5);
 
+    const serializedRecentSites = recentSites.map(site => ({
+      ...site,
+      createdAt: site.createdAt.toISOString(),
+      updatedAt: site.updatedAt.toISOString(),
+    }));
+
     return {
       activeProjectsCount: activeProjectsCount[0]?.count || 0,
       pendingPOsCount: pendingPOsCount[0]?.count || 0,
       todayAttendance: todayAttendance[0]?.count || 0,
       totalBudget: totalBudget[0]?.total || '0',
-      recentSites: recentSites || [],
+      recentSites: serializedRecentSites,
     };
   }, 300); // 5-minute cache TTL
 }

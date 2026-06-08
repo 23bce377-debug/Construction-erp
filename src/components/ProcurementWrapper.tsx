@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPO, createPR, createGRN, getVendors, getItems, getStores, getPurchaseOrders, getPurchaseRequisitions, getInventoryStock } from '@/lib/actions/procurement';
 import { getSites } from '@/lib/actions/projects';
 import { Button } from '@/components/ui/button';
 import { GlassPanel } from '@/components/ui/glass-panel';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { ShoppingBag, ShoppingCart, Archive, Users, Plus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, ShoppingCart, Archive, Users, Plus, AlertTriangle, CheckCircle2, Calendar, FileText, ArrowRight, Shield } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '@/lib/utils';
 
 interface PO {
   id: string;
@@ -82,7 +83,7 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
     initialData: prs,
   });
 
-  const { data: stockList = [] } = useQuery<StoreStock[]>( {
+  const { data: stockList = [] } = useQuery<StoreStock[]>({
     queryKey: ['inventoryStock'],
     queryFn: () => getInventoryStock() as unknown as Promise<StoreStock[]>,
     initialData: stock,
@@ -149,6 +150,13 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
   // Simulated vendor context
   const [selectedVendorPortalId, setSelectedVendorPortalId] = useState(vendorsList[0]?.id || vendors[0]?.id || '');
 
+  // Synchronize simulated vendor selection once loaded
+  useEffect(() => {
+    if (!selectedVendorPortalId && vendorsList.length > 0) {
+      setSelectedVendorPortalId(vendorsList[0].id);
+    }
+  }, [vendorsList, selectedVendorPortalId]);
+
   const createPOMutation = useMutation({
     mutationFn: createPO,
     onSuccess: () => {
@@ -186,7 +194,6 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
     }
   });
 
-  // Submitting actions
   const handleCreatePOSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     createPOMutation.mutate({
@@ -221,7 +228,6 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
     });
   };
 
-  // Helper formatting
   const formatCurrency = (val: string | null) => {
     const num = Number(val || 0);
     return new Intl.NumberFormat('en-IN', {
@@ -231,53 +237,52 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
     }).format(num);
   };
 
-
   return (
-    <div className="space-y-8">
-      {/* Tabs list */}
-      <div className="flex border-b border-slate-800 gap-6">
+    <div className="space-y-8 animate-fade-in">
+      {/* Tabs navigation */}
+      <div className="flex border-b border-white/5 gap-6 overflow-x-auto pb-0.5 scrollbar-none">
         <button
           onClick={() => setActiveTab('po')}
-          className={`pb-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-4 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 shrink-0 ${
             activeTab === 'po' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <ShoppingCart className="w-4 h-4" /> Purchase Orders
+          <ShoppingCart className="w-4.5 h-4.5" /> Purchase Orders
         </button>
         <button
           onClick={() => setActiveTab('pr')}
-          className={`pb-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-4 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 shrink-0 ${
             activeTab === 'pr' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <ShoppingBag className="w-4 h-4" /> Purchase Requests
+          <ShoppingBag className="w-4.5 h-4.5" /> Purchase Requests
         </button>
         <button
           onClick={() => setActiveTab('stock')}
-          className={`pb-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-4 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 shrink-0 ${
             activeTab === 'stock' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <Archive className="w-4 h-4" /> Stock Levels & Alerts
+          <Archive className="w-4.5 h-4.5" /> Stock Levels & Alerts
         </button>
         <button
           onClick={() => setActiveTab('vendor')}
-          className={`pb-4 text-sm font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+          className={`pb-4 text-sm font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 shrink-0 ${
             activeTab === 'vendor' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <Users className="w-4 h-4" /> Vendor Portal
+          <Users className="w-4.5 h-4.5" /> Vendor Portal
         </button>
       </div>
 
-      {/* Tab: Purchase Orders */}
+      {/* Tab content: Purchase Orders */}
       {activeTab === 'po' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">POs Issued</h2>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowGRNForm(!showGRNForm)} variant="outline" className="border-slate-700">
-                Log GRN Receipt
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-white tracking-tight">Active Purchase Orders</h2>
+            <div className="flex gap-3">
+              <Button onClick={() => setShowGRNForm(!showGRNForm)} variant="outline" className="border-white/5 hover:border-slate-700 bg-slate-950/20 text-slate-300">
+                Log Goods Receipt (GRN)
               </Button>
               <Button onClick={() => setShowPOForm(!showPOForm)}>
                 <Plus className="w-4 h-4 mr-1.5" /> Create PO
@@ -285,17 +290,18 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
             </div>
           </div>
 
+          {/* Create PO Form */}
           {showPOForm && (
-            <GlassPanel className="p-6 border border-dashed border-blue-500/20">
-              <form onSubmit={handleCreatePOSubmit} className="space-y-4">
-                <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">New Purchase Order</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Vendor</label>
+            <GlassPanel className="p-6 border border-dashed border-blue-500/20 bg-slate-950/20 animate-in fade-in duration-200">
+              <form onSubmit={handleCreatePOSubmit} className="space-y-6">
+                <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">New Purchase Order</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Supplier/Vendor</label>
                     <select
                       value={poVendorId}
                       onChange={e => setPoVendorId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Vendor</option>
@@ -304,126 +310,138 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Site Link</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Site Link</label>
                     <select
                       value={poSiteId}
                       onChange={e => setPoSiteId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                     >
-                      <option value="">Select Site (Optional)</option>
+                      <option value="">Select Destination Site (Optional)</option>
                       {sitesList.map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">PO Number</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">PO Reference Code</label>
                     <input
                       type="text"
-                      placeholder="PO-2024-xxx"
+                      placeholder="e.g. PO-2026-004"
                       value={poNumber}
                       onChange={e => setPoNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Total Committed Amount (INR)</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Contract/Committed Amount (INR)</label>
                     <input
                       type="number"
-                      placeholder="Total Value"
+                      placeholder="Enter value"
                       value={poAmount}
                       onChange={e => setPoAmount(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-slate-850">
-                  <h4 className="text-xs font-semibold text-slate-300">Add PO Items</h4>
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wide">Purchase Order Line Items</h4>
                   {poItemsInput.map((pItem, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <select
-                        value={pItem.itemId}
-                        onChange={e => {
-                          const updated = [...poItemsInput];
-                          updated[idx].itemId = e.target.value;
-                          setPoItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      >
-                        <option value="">Select Item</option>
-                        {itemsList.map(i => (
-                          <option key={i.id} value={i.id}>{i.name}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        placeholder="Quantity"
-                        value={pItem.qty}
-                        onChange={e => {
-                          const updated = [...poItemsInput];
-                          updated[idx].qty = e.target.value;
-                          setPoItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Unit Rate"
-                        value={pItem.unitRate}
-                        onChange={e => {
-                          const updated = [...poItemsInput];
-                          updated[idx].unitRate = e.target.value;
-                          setPoItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-red-400 hover:text-red-300 border-slate-850 h-8 text-xs py-0"
-                        onClick={() => {
-                          setPoItemsInput(poItemsInput.filter((_, i) => i !== idx));
-                        }}
-                      >
-                        Delete
-                      </Button>
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1 md:col-span-2">
+                        <select
+                          value={pItem.itemId}
+                          onChange={e => {
+                            const updated = [...poItemsInput];
+                            updated[idx].itemId = e.target.value;
+                            setPoItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white"
+                          required
+                        >
+                          <option value="">Select Item</option>
+                          {itemsList.map(i => (
+                            <option key={i.id} value={i.id}>{i.name} ({i.uom})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <input
+                          type="number"
+                          placeholder="Quantity"
+                          value={pItem.qty}
+                          onChange={e => {
+                            const updated = [...poItemsInput];
+                            updated[idx].qty = e.target.value;
+                            setPoItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1 flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Unit Rate"
+                          value={pItem.unitRate}
+                          onChange={e => {
+                            const updated = [...poItemsInput];
+                            updated[idx].unitRate = e.target.value;
+                            setPoItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="text-red-400 hover:text-red-300 border-white/5 bg-slate-950/20 h-9 text-xs px-3"
+                          onClick={() => {
+                            setPoItemsInput(poItemsInput.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 text-xs text-slate-300"
+                    className="h-8.5 text-xs text-slate-300 border-white/5 hover:border-slate-700 bg-slate-950/10"
                     onClick={() => setPoItemsInput([...poItemsInput, { itemId: '', qty: '', unitRate: '', uom: 'CUM' }])}
                   >
                     + Add Item Row
                   </Button>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2.5 pt-4 border-t border-white/5">
                   <Button variant="outline" type="button" onClick={() => setShowPOForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Publish PO</Button>
+                  <Button type="submit" disabled={createPOMutation.isPending}>
+                    {createPOMutation.isPending ? 'Publishing...' : 'Publish Purchase Order'}
+                  </Button>
                 </div>
               </form>
             </GlassPanel>
           )}
 
+          {/* Log Goods Receipt (GRN) Form */}
           {showGRNForm && (
-            <GlassPanel className="p-6 border border-dashed border-purple-500/20">
-              <form onSubmit={handleCreateGRNSubmit} className="space-y-4">
-                <h3 className="text-sm font-semibold text-purple-400 uppercase tracking-wider">Log Goods Received Note (GRN)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Site</label>
+            <GlassPanel className="p-6 border border-dashed border-purple-500/20 bg-slate-950/20 animate-in fade-in duration-200">
+              <form onSubmit={handleCreateGRNSubmit} className="space-y-6">
+                <h3 className="text-xs font-bold text-purple-400 uppercase tracking-wider">Log Goods Received Note (GRN)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Destination Site</label>
                     <select
                       value={grnSiteId}
                       onChange={e => setGrnSiteId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Site</option>
@@ -432,12 +450,12 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Store</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Receiving Store</label>
                     <select
                       value={grnStoreId}
                       onChange={e => setGrnStoreId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Store</option>
@@ -446,25 +464,25 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Linked PO</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Link to PO</label>
                     <select
                       value={grnPoId}
                       onChange={e => setGrnPoId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                     >
-                      <option value="">Select PO (Optional)</option>
+                      <option value="">Direct Receipt (Unlinked PO)</option>
                       {posList.map(p => (
                         <option key={p.id} value={p.id}>{p.poNumber}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Vendor</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Vendor/Supplier</label>
                     <select
                       value={grnVendorId}
                       onChange={e => setGrnVendorId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Vendor</option>
@@ -473,116 +491,127 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">GRN Challan/Bill Number</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">GRN Invoice/Challan Reference</label>
                     <input
                       type="text"
-                      placeholder="GRN-xxx"
+                      placeholder="e.g. GRN-2026-004"
                       value={grnNumber}
                       onChange={e => setGrnNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-slate-850">
-                  <h4 className="text-xs font-semibold text-slate-300">Add Received Materials</h4>
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wide">Received Materials Check</h4>
                   {grnItemsInput.map((gItem, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <select
-                        value={gItem.itemId}
-                        onChange={e => {
-                          const updated = [...grnItemsInput];
-                          updated[idx].itemId = e.target.value;
-                          setGrnItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      >
-                        <option value="">Select Item</option>
-                        {itemsList.map(i => (
-                          <option key={i.id} value={i.id}>{i.name}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        placeholder="Received Qty"
-                        value={gItem.receivedQty}
-                        onChange={e => {
-                          const updated = [...grnItemsInput];
-                          updated[idx].receivedQty = e.target.value;
-                          updated[idx].acceptedQty = e.target.value; // set accepted as default
-                          setGrnItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Accepted Qty"
-                        value={gItem.acceptedQty}
-                        onChange={e => {
-                          const updated = [...grnItemsInput];
-                          updated[idx].acceptedQty = e.target.value;
-                          setGrnItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-red-400 hover:text-red-300 border-slate-850 h-8 text-xs py-0"
-                        onClick={() => {
-                          setGrnItemsInput(grnItemsInput.filter((_, i) => i !== idx));
-                        }}
-                      >
-                        Delete
-                      </Button>
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1 md:col-span-2">
+                        <select
+                          value={gItem.itemId}
+                          onChange={e => {
+                            const updated = [...grnItemsInput];
+                            updated[idx].itemId = e.target.value;
+                            setGrnItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white"
+                          required
+                        >
+                          <option value="">Select Item</option>
+                          {itemsList.map(i => (
+                            <option key={i.id} value={i.id}>{i.name} ({i.uom})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <input
+                          type="number"
+                          placeholder="Received Qty"
+                          value={gItem.receivedQty}
+                          onChange={e => {
+                            const updated = [...grnItemsInput];
+                            updated[idx].receivedQty = e.target.value;
+                            updated[idx].acceptedQty = e.target.value; // set accepted as default
+                            setGrnItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1 flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Accepted Qty"
+                          value={gItem.acceptedQty}
+                          onChange={e => {
+                            const updated = [...grnItemsInput];
+                            updated[idx].acceptedQty = e.target.value;
+                            setGrnItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="text-red-400 hover:text-red-300 border-white/5 bg-slate-950/20 h-9 text-xs px-3"
+                          onClick={() => {
+                            setGrnItemsInput(grnItemsInput.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 text-xs text-slate-300"
+                    className="h-8.5 text-xs text-slate-300 border-white/5 hover:border-slate-700 bg-slate-950/10"
                     onClick={() => setGrnItemsInput([...grnItemsInput, { itemId: '', receivedQty: '', acceptedQty: '', uom: 'CUM' }])}
                   >
                     + Add Material Row
                   </Button>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2.5 pt-4 border-t border-white/5">
                   <Button variant="outline" type="button" onClick={() => setShowGRNForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Log GRN Receipt</Button>
+                  <Button type="submit" disabled={createGRNMutation.isPending}>
+                    {createGRNMutation.isPending ? 'Logging GRN...' : 'Log GRN Receipt'}
+                  </Button>
                 </div>
               </form>
             </GlassPanel>
           )}
 
-          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-900/50 border-b border-slate-850 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <tr className="bg-slate-900/40 border-b border-white/5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">PO Number</th>
-                  <th className="px-6 py-4">Vendor</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Vendor Partner</th>
+                  <th className="px-6 py-4">Publish Date</th>
+                  <th className="px-6 py-4">Total Value</th>
+                  <th className="px-6 py-4">Execution Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850">
+              <tbody className="divide-y divide-white/5 text-sm">
                 {posList.map(po => (
-                  <tr key={po.id} className="hover:bg-slate-900/10">
-                    <td className="px-6 py-4 font-mono text-sm text-blue-400">{po.poNumber}</td>
-                    <td className="px-6 py-4 text-sm text-white">{po.vendorName}</td>
+                  <tr key={po.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 font-mono text-blue-400 font-bold">{po.poNumber}</td>
+                    <td className="px-6 py-4 text-white font-medium">{po.vendorName}</td>
                     <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                      {new Date(po.poDate).toLocaleDateString()}
+                      {formatDate(po.poDate)}
                     </td>
-                    <td className="px-6 py-4 font-mono text-sm text-emerald-400 font-semibold">
+                    <td className="px-6 py-4 font-mono text-emerald-400 font-bold">
                       {formatCurrency(po.totalAmount)}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={po.status as string} />
+                      <StatusBadge status={po.status as any} />
                     </td>
                   </tr>
                 ))}
@@ -596,23 +625,24 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
       {activeTab === 'pr' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-white">Purchase Requests (BOQ Scoped)</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Material Requisitions</h2>
             <Button onClick={() => setShowPRForm(!showPRForm)}>
               <Plus className="w-4 h-4 mr-1.5" /> New Requisition
             </Button>
           </div>
 
+          {/* Create PR Form */}
           {showPRForm && (
-            <GlassPanel className="p-6 border border-dashed border-blue-500/20">
-              <form onSubmit={handleCreatePRSubmit} className="space-y-4">
-                <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">New Material Requisition</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Site Requesting</label>
+            <GlassPanel className="p-6 border border-dashed border-blue-500/20 bg-slate-950/20 animate-in fade-in duration-200">
+              <form onSubmit={handleCreatePRSubmit} className="space-y-6">
+                <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">New Material Requisition</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Requesting Site</label>
                     <select
                       value={prSiteId}
                       onChange={e => setPrSiteId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Site</option>
@@ -621,110 +651,118 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">PR Reference Number</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">PR Reference ID</label>
                     <input
                       type="text"
-                      placeholder="PR-2024-xxx"
+                      placeholder="e.g. PR-2026-004"
                       value={prNumber}
                       onChange={e => setPrNumber(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-400">Notes / Purpose</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Notes / Justification</label>
                     <input
                       type="text"
-                      placeholder="Scope or activity details"
+                      placeholder="For tower structural framework..."
                       value={prNotes}
                       onChange={e => setPrNotes(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-slate-850">
-                  <h4 className="text-xs font-semibold text-slate-300">Requested Items</h4>
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wide">Requested Materials</h4>
                   {prItemsInput.map((pItem, idx) => (
-                    <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <select
-                        value={pItem.itemId}
-                        onChange={e => {
-                          const updated = [...prItemsInput];
-                          updated[idx].itemId = e.target.value;
-                          setPrItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      >
-                        <option value="">Select Item</option>
-                        {itemsList.map(i => (
-                          <option key={i.id} value={i.id}>{i.name}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        placeholder="Requested Quantity"
-                        value={pItem.requestedQty}
-                        onChange={e => {
-                          const updated = [...prItemsInput];
-                          updated[idx].requestedQty = e.target.value;
-                          setPrItemsInput(updated);
-                        }}
-                        className="bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-red-400 hover:text-red-300 border-slate-855 h-8 text-xs py-0"
-                        onClick={() => {
-                          setPrItemsInput(prItemsInput.filter((_, i) => i !== idx));
-                        }}
-                      >
-                        Delete
-                      </Button>
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                      <div className="space-y-1 md:col-span-2">
+                        <select
+                          value={pItem.itemId}
+                          onChange={e => {
+                            const updated = [...prItemsInput];
+                            updated[idx].itemId = e.target.value;
+                            setPrItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white"
+                          required
+                        >
+                          <option value="">Select Item</option>
+                          {itemsList.map(i => (
+                            <option key={i.id} value={i.id}>{i.name} ({i.uom})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1 flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Requested Quantity"
+                          value={pItem.requestedQty}
+                          onChange={e => {
+                            const updated = [...prItemsInput];
+                            updated[idx].requestedQty = e.target.value;
+                            setPrItemsInput(updated);
+                          }}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono"
+                          required
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="text-red-400 hover:text-red-300 border-white/5 bg-slate-950/20 h-9 text-xs px-3"
+                          onClick={() => {
+                            setPrItemsInput(prItemsInput.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-8 text-xs text-slate-300"
+                    className="h-8.5 text-xs text-slate-300 border-white/5 hover:border-slate-700 bg-slate-950/10"
                     onClick={() => setPrItemsInput([...prItemsInput, { itemId: '', requestedQty: '', uom: 'CUM' }])}
                   >
                     + Add Item Row
                   </Button>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-2.5 pt-4 border-t border-white/5">
                   <Button variant="outline" type="button" onClick={() => setShowPRForm(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Submit Requisition</Button>
+                  <Button type="submit" disabled={createPRMutation.isPending}>
+                    {createPRMutation.isPending ? 'Submitting...' : 'Submit Requisition'}
+                  </Button>
                 </div>
               </form>
             </GlassPanel>
           )}
 
-          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-900/50 border-b border-slate-850 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <tr className="bg-slate-900/40 border-b border-white/5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="px-6 py-4">PR Number</th>
-                  <th className="px-6 py-4">Site</th>
-                  <th className="px-6 py-4">Date Submitted</th>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Site Mapped</th>
+                  <th className="px-6 py-4">Submission Date</th>
+                  <th className="px-6 py-4">Approval Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-855">
+              <tbody className="divide-y divide-white/5 text-sm">
                 {prsList.map(pr => (
-                  <tr key={pr.id} className="hover:bg-slate-900/10">
-                    <td className="px-6 py-4 font-mono text-sm text-blue-400">{pr.prNumber}</td>
-                    <td className="px-6 py-4 text-sm text-slate-200">{pr.siteName}</td>
-                    <td className="px-6 py-4 text-xs text-slate-400 font-mono">
-                      {new Date(pr.createdAt).toLocaleDateString()}
+                  <tr key={pr.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 font-mono text-blue-400 font-bold">{pr.prNumber}</td>
+                    <td className="px-6 py-4 text-white font-medium">{pr.siteName}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-slate-400">
+                      {formatDate(pr.createdAt)}
                     </td>
                     <td className="px-6 py-4">
-                      <StatusBadge status={pr.status as string} />
+                      <StatusBadge status={pr.status as any} />
                     </td>
                   </tr>
                 ))}
@@ -737,111 +775,130 @@ export function ProcurementWrapper({ pos, prs, stock, vendors, sites, items, sto
       {/* Tab: Stock Levels */}
       {activeTab === 'stock' && (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white">Store Inventory Levels & Reorder Limits</h2>
-          <div className="grid grid-cols-1 gap-6">
-            <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-900/50 border-b border-slate-850 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    <th className="px-6 py-4">Store</th>
-                    <th className="px-6 py-4">Material Name</th>
-                    <th className="px-6 py-4">Code</th>
-                    <th className="px-6 py-4">Current Stock</th>
-                    <th className="px-6 py-4">Reorder Level</th>
-                    <th className="px-6 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-855">
-                  {stockList.map((s, idx) => {
-                    const isLow = s.reorderLevel !== null && Number(s.qtyOnHand) <= Number(s.reorderLevel);
-                    return (
-                      <tr key={idx} className={`hover:bg-slate-900/10 ${isLow ? 'bg-red-500/5' : ''}`}>
-                        <td className="px-6 py-4 text-sm text-white font-medium">{s.storeName}</td>
-                        <td className="px-6 py-4 text-sm text-slate-200">{s.itemName}</td>
-                        <td className="px-6 py-4 text-xs text-slate-400 font-mono">{s.itemCode}</td>
-                        <td className="px-6 py-4 text-sm text-slate-100 font-mono font-semibold">
-                          {s.qtyOnHand} {s.uom}
-                        </td>
-                        <td className="px-6 py-4 text-xs text-slate-400 font-mono">
-                          {s.reorderLevel ? `${s.reorderLevel} ${s.uom}` : 'Not Set'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {isLow ? (
-                            <span className="inline-flex items-center gap-1 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-                              <AlertTriangle className="w-3 h-3" /> Reorder Alert
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-                              <CheckCircle2 className="w-3 h-3" /> Healthy
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Real-Time Store Balances</h2>
+          <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-900/40 border-b border-white/5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="px-6 py-4">Store Depot</th>
+                  <th className="px-6 py-4">Item Name</th>
+                  <th className="px-6 py-4">Catalog Code</th>
+                  <th className="px-6 py-4 font-mono text-right">In-Stock Quantity</th>
+                  <th className="px-6 py-4 font-mono text-right">Reorder Threshold</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-sm">
+                {stockList.map((s, idx) => {
+                  const isLow = s.reorderLevel !== null && Number(s.qtyOnHand) <= Number(s.reorderLevel);
+                  return (
+                    <tr key={idx} className={`hover:bg-white/5 transition-colors ${isLow ? 'bg-rose-500/5' : ''}`}>
+                      <td className="px-6 py-4 text-white font-semibold">{s.storeName}</td>
+                      <td className="px-6 py-4 text-slate-300 font-medium">{s.itemName}</td>
+                      <td className="px-6 py-4 text-xs font-mono text-slate-500">{s.itemCode}</td>
+                      <td className="px-6 py-4 text-right text-slate-200 font-mono font-bold">
+                        {s.qtyOnHand} <span className="text-[10px] text-slate-500 font-sans">{s.uom}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs text-slate-400 font-mono">
+                        {s.reorderLevel ? `${s.reorderLevel} ${s.uom}` : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {isLow ? (
+                          <span className="inline-flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            <AlertTriangle className="w-3 h-3" /> Reorder Alert
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            <CheckCircle2 className="w-3 h-3" /> Normal
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Tab: Vendor Portal */}
+      {/* Tab: Vendor Portal Simulator */}
       {activeTab === 'vendor' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-white">Simulated Vendor Portal</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Mock portal context for active vendor suppliers</p>
+          <GlassPanel className="p-6 border border-white/5 bg-slate-900/10 backdrop-blur-md shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-400" />
+                <div>
+                  <h2 className="text-lg font-bold text-white tracking-tight">Vendor Portal Interface</h2>
+                  <p className="text-slate-400 text-xs mt-0.5">Simulated supplier dashboard views</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3.5 self-start sm:self-auto">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Identity context:</label>
+                <select
+                  value={selectedVendorPortalId}
+                  onChange={e => setSelectedVendorPortalId(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white"
+                >
+                  {vendorsList.map(v => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400 font-medium">Logged in Vendor:</label>
-              <select
-                value={selectedVendorPortalId}
-                onChange={e => setSelectedVendorPortalId(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
-              >
-                {vendorsList.map(v => (
-                  <option key={v.id} value={v.id}>{v.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
-          <div className="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/20">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-900/50 border-b border-slate-850 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">PO Number</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-855">
-                {posList.map(po => (
-                  <tr key={po.id} className="hover:bg-slate-900/10">
-                    <td className="px-6 py-4 font-mono text-sm text-blue-400">{po.poNumber}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                      {new Date(po.poDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-sm text-emerald-400 font-semibold">
-                      {formatCurrency(po.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={po.status as string} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Button variant="outline" className="h-7 text-xs px-2 py-0 border-slate-800">
-                        Accept PO & Schedule Delivery
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <div className="space-y-6">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wide">Assigned Purchase Orders</h3>
+              <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/40 border-b border-white/5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <th className="px-6 py-4">PO Reference</th>
+                      <th className="px-6 py-4 font-mono">Total Order Value</th>
+                      <th className="px-6 py-4">Linked Destination Site</th>
+                      <th className="px-6 py-4">Order Date</th>
+                      <th className="px-6 py-4">Supplier Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5 text-sm">
+                    {posList
+                      .filter(po => {
+                        const targetVendor = vendorsList.find(v => v.id === selectedVendorPortalId);
+                        return po.vendorName === targetVendor?.name;
+                      })
+                      .map(po => (
+                        <tr key={po.id} className="hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 font-mono text-blue-400 font-bold">{po.poNumber}</td>
+                          <td className="px-6 py-4 font-mono text-emerald-400 font-bold">
+                            {formatCurrency(po.totalAmount)}
+                          </td>
+                          <td className="px-6 py-4 text-slate-300 font-medium">Apex Smart City Hub</td>
+                          <td className="px-6 py-4 text-xs font-mono text-slate-500">
+                            {formatDate(po.poDate)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                              Assigned
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    {posList.filter(po => {
+                      const targetVendor = vendorsList.find(v => v.id === selectedVendorPortalId);
+                      return po.vendorName === targetVendor?.name;
+                    }).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12 text-slate-500 font-medium">
+                          No active purchase orders found for this vendor context.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </GlassPanel>
         </div>
       )}
     </div>

@@ -38,6 +38,7 @@ export async function getInvoices() {
     return db
       .select({
         id: invoices.id,
+        vendorId: invoices.vendorId,
         invoiceNumber: invoices.invoiceNumber,
         invoiceDate: invoices.invoiceDate,
         referenceType: invoices.referenceType,

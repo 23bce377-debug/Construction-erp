@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db/db';
-import { dprs, dprProgressEntries, activities, workerAttendance, inventoryLedger, workers, items } from '@/lib/db/schema';
+import { dprs, dprProgressEntries, activities, workerAttendance, inventoryLedger, workers, items, stores, inventoryStock } from '@/lib/db/schema';
 import { getOrgContext } from '@/lib/auth-utils';
 import { dprSchema, attendanceSchema } from '@/lib/validations';
 import { eq, sql, and } from 'drizzle-orm';
@@ -127,15 +127,68 @@ export async function recordMaterialIssue(data: unknown) {
   const { orgId } = await getOrgContext();
   const validated = materialIssueSchema.parse(data);
 
+  // Find store for this site
+  let store = await db
+    .select()
+    .from(stores)
+    .where(and(eq(stores.siteId, validated.siteId), eq(stores.orgId, orgId)))
+    .limit(1)
+    .then(rows => rows[0]);
+
+  if (!store) {
+    // Fallback: Find any store in this organization
+    store = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.orgId, orgId))
+      .limit(1)
+      .then(rows => rows[0]);
+  }
+
+  if (!store) {
+    // Fallback 2: Create a default store for this site
+    const [newStore] = await db.insert(stores).values({
+      orgId,
+      siteId: validated.siteId,
+      name: "Default Site Store",
+      storeType: "site_store",
+    }).returning();
+    store = newStore;
+  }
+
   const [issue] = await db.insert(inventoryLedger).values({
     orgId,
     siteId: validated.siteId,
+    storeId: store.id,
     itemId: validated.itemId,
     transactionType: 'ISSUE',
     qty: validated.qty,
     uom: validated.uom,
     referenceId: validated.activityId, // link to activity if provided
   }).returning();
+
+  // Update inventoryStock
+  const [existing] = await db
+    .select()
+    .from(inventoryStock)
+    .where(and(eq(inventoryStock.storeId, store.id), eq(inventoryStock.itemId, validated.itemId)));
+
+  if (existing) {
+    const newQty = (Number(existing.qtyOnHand || 0) - Number(validated.qty)).toString();
+    await db
+      .update(inventoryStock)
+      .set({ qtyOnHand: newQty })
+      .where(and(eq(inventoryStock.storeId, store.id), eq(inventoryStock.itemId, validated.itemId)));
+  } else {
+    await db
+      .insert(inventoryStock)
+      .values({
+        storeId: store.id,
+        itemId: validated.itemId,
+        qtyOnHand: `-${validated.qty}`,
+        reservedQty: "0",
+      });
+  }
 
   await invalidateCache(`org:${orgId}:procurement:stock`);
   await invalidateCache(`org:${orgId}:reports:aging`);

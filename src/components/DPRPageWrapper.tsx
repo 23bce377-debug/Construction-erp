@@ -6,7 +6,7 @@ import { getSites, getActivities } from '@/lib/actions/projects';
 import { getItems } from '@/lib/actions/procurement';
 import { Button } from '@/components/ui/button';
 import { GlassPanel } from '@/components/ui/glass-panel';
-import { CloudOff, RefreshCw, Wifi, Layers, UserCheck, PackageOpen } from 'lucide-react';
+import { CloudOff, RefreshCw, Wifi, Layers, UserCheck, PackageOpen, Calendar, HelpCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface Site {
@@ -87,6 +87,13 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
   const [issueQty, setIssueQty] = useState('');
   const [issueActivityId, setIssueActivityId] = useState('');
 
+  // Sync state if sitesList updates from empty to loaded
+  useEffect(() => {
+    if (!selectedSiteId && sitesList.length > 0) {
+      setSelectedSiteId(sitesList[0].id);
+    }
+  }, [sitesList, selectedSiteId]);
+
   // Load unsynced records from localStorage
   useEffect(() => {
     const cached = localStorage.getItem('dpr_unsynced_data');
@@ -128,11 +135,11 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
     mutationFn: async () => {
       for (const record of pendingSync) {
         if (record.type === 'work') {
-          await createDPR(record.payload as unknown as Parameters<typeof createDPR>[0]);
+          await createDPR(record.payload as any);
         } else if (record.type === 'attendance') {
-          await recordAttendanceBatch(record.payload as unknown as Parameters<typeof recordAttendanceBatch>[0]);
+          await recordAttendanceBatch(record.payload as any);
         } else if (record.type === 'material') {
-          await recordMaterialIssue(record.payload as unknown as Parameters<typeof recordMaterialIssue>[0]);
+          await recordMaterialIssue(record.payload as any);
         }
       }
     },
@@ -215,7 +222,6 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
     }
   };
 
-
   // Submit Attendance
   const handleAttendanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,17 +269,24 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fade-in">
       {/* Offline/Online Simulation Banner */}
-      <div className="flex flex-col md:flex-row items-center justify-between p-4 bg-slate-900/60 border border-slate-800 rounded-xl gap-4">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${isOnline ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-            {isOnline ? <Wifi className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
+      <GlassPanel className="p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-white/5 bg-slate-900/10 backdrop-blur-md">
+        <div className="flex items-center gap-3.5">
+          <div className={`p-2.5 rounded-xl flex items-center justify-center relative ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+            {isOnline ? (
+              <>
+                <Wifi className="w-5.5 h-5.5" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              </>
+            ) : (
+              <CloudOff className="w-5.5 h-5.5" />
+            )}
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">Connectivity Mode</h3>
-            <p className="text-xs text-slate-400">
-              {isOnline ? 'Fully connected. Submissions are synced in real-time.' : 'Offline mode active. Progress logs are saved locally.'}
+            <h3 className="text-sm font-bold text-white">Execution Connectivity</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isOnline ? 'Online mode active. Submissions sync automatically.' : 'Offline storage enabled. Progress logs cached in client buffer.'}
             </p>
           </div>
         </div>
@@ -282,31 +295,31 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
             <Button
               onClick={handleSync}
               disabled={syncMutation.isPending || !isOnline}
-              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold h-9 px-4 active:scale-95 transition-transform"
+              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold h-9 px-4 active:scale-95 transition-transform"
             >
               <RefreshCw className={`w-4 h-4 mr-1.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-              Sync Unsaved Logs ({pendingSync.length})
+              Sync Buffer ({pendingSync.length})
             </Button>
           )}
           <Button
             variant="outline"
-            className="h-9 px-4 border-slate-700 text-slate-200"
+            className="h-9 px-4 border-white/5 hover:border-slate-700 bg-slate-950/20 text-slate-300"
             onClick={() => setIsOnline(!isOnline)}
           >
-            {isOnline ? 'Simulate Offline' : 'Go Online'}
+            {isOnline ? 'Go Offline' : 'Go Online'}
           </Button>
         </div>
-      </div>
+      </GlassPanel>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left column: Site selector and tabs */}
         <div className="space-y-4">
-          <GlassPanel className="p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-white">Execution Site</h3>
+          <GlassPanel className="p-4 space-y-4 border border-white/5 bg-slate-900/10">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Execution Site</h3>
             <select
               value={selectedSiteId}
               onChange={e => setSelectedSiteId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500/50"
             >
               {sitesList.map(s => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -314,30 +327,30 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
             </select>
           </GlassPanel>
 
-          <GlassPanel className="p-2 space-y-1">
+          <GlassPanel className="p-2 space-y-1 border border-white/5 bg-slate-900/10">
             <button
               onClick={() => setActiveTab('work')}
-              className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'work' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                activeTab === 'work' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_4px_15px_rgba(59,130,246,0.06)]' : 'text-slate-400 border border-transparent hover:text-white hover:bg-white/5'
               }`}
             >
-              <Layers className="w-4 h-4" /> Daily Work Logs
+              <Layers className="w-4.5 h-4.5" /> Daily Work Logs
             </button>
             <button
               onClick={() => setActiveTab('attendance')}
-              className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'attendance' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                activeTab === 'attendance' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_4px_15px_rgba(245,158,11,0.06)]' : 'text-slate-400 border border-transparent hover:text-white hover:bg-white/5'
               }`}
             >
-              <UserCheck className="w-4 h-4" /> Attendance Batch
+              <UserCheck className="w-4.5 h-4.5" /> Attendance Batch
             </button>
             <button
               onClick={() => setActiveTab('material')}
-              className={`w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'material' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                activeTab === 'material' ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_4px_15px_rgba(139,92,246,0.06)]' : 'text-slate-400 border border-transparent hover:text-white hover:bg-white/5'
               }`}
             >
-              <PackageOpen className="w-4 h-4" /> Material Issue
+              <PackageOpen className="w-4.5 h-4.5" /> Material Issue
             </button>
           </GlassPanel>
         </div>
@@ -345,60 +358,60 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
         {/* Right column: Tab content */}
         <div className="lg:col-span-3">
           {activeTab === 'work' && (
-            <GlassPanel className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Log Daily Quantity Achieved</h2>
-              <form onSubmit={handleWorkLogSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Activity</label>
+            <GlassPanel className="p-6 border border-white/5 bg-slate-900/10 backdrop-blur-md shadow-2xl">
+              <h2 className="text-lg font-bold text-white mb-6 tracking-tight">Log Daily Quantities Achieved</h2>
+              <form onSubmit={handleWorkLogSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Site Activity</label>
                     <select
                       value={selectedActivityId}
                       onChange={e => setSelectedActivityId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
-                      <option value="">Select Site Activity</option>
+                      <option value="">Select Activity</option>
                       {siteActivities.map(a => (
                         <option key={a.id} value={a.id}>{a.name} ({a.uom})</option>
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Date</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Date of Execution</label>
                     <input
                       type="date"
                       value={workDate}
                       onChange={e => setWorkDate(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Quantity Done Today</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Quantity Completed</label>
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="Enter quantity"
+                      placeholder="e.g. 150"
                       value={qtyDone}
                       onChange={e => setQtyDone(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Remarks</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Remarks / Constraints</label>
                     <input
                       type="text"
-                      placeholder="Optional notes..."
+                      placeholder="e.g. Work halted due to rain"
                       value={workRemarks}
                       onChange={e => setWorkRemarks(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                     />
                   </div>
                 </div>
                 <div className="pt-4 flex justify-end">
                   <Button type="submit" className="w-full md:w-auto px-6 active:scale-95 transition-transform">
-                    Submit Log
+                    Submit Log Entry
                   </Button>
                 </div>
               </form>
@@ -406,50 +419,50 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
           )}
 
           {activeTab === 'attendance' && (
-            <GlassPanel className="p-6">
-              <div className="flex justify-between items-center mb-6">
+            <GlassPanel className="p-6 border border-white/5 bg-slate-900/10 backdrop-blur-md shadow-2xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Worker Attendance Batch</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Quick roll call check-in for personnel on site</p>
+                  <h2 className="text-lg font-bold text-white tracking-tight font-sans">Worker Attendance Roll Call</h2>
+                  <p className="text-slate-400 text-xs mt-1 font-medium">Daily manpower log and payroll reference check</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-slate-400 font-medium">Date</label>
+                <div className="flex items-center gap-3.5 self-start sm:self-auto">
+                  <Calendar className="w-4.5 h-4.5 text-slate-400" />
                   <input
                     type="date"
                     value={attendanceDate}
                     onChange={e => setAttendanceDate(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-xs text-white font-mono"
+                    className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white font-mono"
                   />
                 </div>
               </div>
 
               <form onSubmit={handleAttendanceSubmit} className="space-y-6">
-                <div className="overflow-x-auto border border-slate-850 rounded-xl">
+                <div className="overflow-x-auto border border-white/5 rounded-xl bg-slate-950/20">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-900/50 border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Worker</th>
+                      <tr className="bg-slate-900/40 border-b border-white/5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="px-6 py-4">Personnel</th>
                         <th className="px-6 py-4">Trade</th>
-                        <th className="px-6 py-4">Attendance</th>
-                        <th className="px-6 py-4">Shift</th>
-                        <th className="px-6 py-4">Hours</th>
+                        <th className="px-6 py-4">Attendance Status</th>
+                        <th className="px-6 py-4">Shift Type</th>
+                        <th className="px-6 py-4">Hours Logged</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-850">
+                    <tbody className="divide-y divide-white/5">
                       {workersList.map(w => {
                         const rec = attendanceRecords[w.id] || { shift: 'day', hoursWorked: '8', attendanceType: 'present' };
                         return (
-                          <tr key={w.id} className="hover:bg-slate-900/10">
-                            <td className="px-6 py-3.5 text-sm font-medium text-white">{w.name}</td>
-                            <td className="px-6 py-3.5 text-xs text-slate-400">{w.trade}</td>
-                            <td className="px-6 py-3.5">
+                          <tr key={w.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 text-sm font-semibold text-white">{w.name}</td>
+                            <td className="px-6 py-4 text-xs font-medium text-slate-400">{w.trade}</td>
+                            <td className="px-6 py-4">
                               <select
                                 value={rec.attendanceType}
                                 onChange={e => setAttendanceRecords(prev => ({
                                   ...prev,
                                   [w.id]: { ...rec, attendanceType: e.target.value }
                                 }))}
-                                className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white"
+                                className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-white"
                               >
                                 <option value="present">Present</option>
                                 <option value="absent">Absent</option>
@@ -457,21 +470,21 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
                                 <option value="on_leave">On Leave</option>
                               </select>
                             </td>
-                            <td className="px-6 py-3.5">
+                            <td className="px-6 py-4">
                               <select
                                 value={rec.shift}
                                 onChange={e => setAttendanceRecords(prev => ({
                                   ...prev,
                                   [w.id]: { ...rec, shift: e.target.value }
                                 }))}
-                                className="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white"
+                                className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-white"
                               >
-                                <option value="day">Day</option>
-                                <option value="night">Night</option>
+                                <option value="day">General Day</option>
+                                <option value="night">Night Shift</option>
                                 <option value="overtime">Overtime</option>
                               </select>
                             </td>
-                            <td className="px-6 py-3.5">
+                            <td className="px-6 py-4">
                               <input
                                 type="number"
                                 step="0.5"
@@ -480,7 +493,7 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
                                   ...prev,
                                   [w.id]: { ...rec, hoursWorked: e.target.value }
                                 }))}
-                                className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-white font-mono text-center"
+                                className="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1.5 text-xs text-white font-mono text-center"
                               />
                             </td>
                           </tr>
@@ -490,9 +503,9 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
                   </table>
                 </div>
 
-                <div className="flex justify-end">
-                  <Button type="submit" className="px-6 active:scale-95 transition-transform">
-                    Save Attendance Batch
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" className="px-6 active:scale-95 transition-transform shadow-lg">
+                    Publish Attendance Batch
                   </Button>
                 </div>
               </form>
@@ -500,16 +513,16 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
           )}
 
           {activeTab === 'material' && (
-            <GlassPanel className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Material Consumption & Issues</h2>
-              <form onSubmit={handleMaterialSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Material / Item</label>
+            <GlassPanel className="p-6 border border-white/5 bg-slate-900/10 backdrop-blur-md shadow-2xl">
+              <h2 className="text-lg font-bold text-white mb-6 tracking-tight">Track Material Consumption</h2>
+              <form onSubmit={handleMaterialSubmit} className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Item / Material Code</label>
                     <select
                       value={selectedItemId}
                       onChange={e => setSelectedItemId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                       required
                     >
                       <option value="">Select Item</option>
@@ -518,26 +531,26 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-400">Issue Quantity</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Quantity Issued</label>
                     <input
                       type="number"
                       step="0.001"
-                      placeholder="Enter issue quantity"
+                      placeholder="e.g. 50"
                       value={issueQty}
                       onChange={e => setIssueQty(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white font-mono"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
                       required
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium text-slate-400">Link to Activity (Optional)</label>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Link to Work Activity (Optional)</label>
                     <select
                       value={issueActivityId}
                       onChange={e => setIssueActivityId(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white"
                     >
-                      <option value="">No Link (Central Centralized Site Stock)</option>
+                      <option value="">General Site Buffer (Unlinked)</option>
                       {siteActivities.map(a => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
@@ -545,8 +558,8 @@ export function DPRPageWrapper({ sites, activities, workers, items }: DPRPageWra
                   </div>
                 </div>
                 <div className="pt-4 flex justify-end">
-                  <Button type="submit" className="w-full md:w-auto px-6 active:scale-95 transition-transform">
-                    Record Issue
+                  <Button type="submit" className="w-full md:w-auto px-6 active:scale-95 transition-transform shadow-lg">
+                    Log Material Issue
                   </Button>
                 </div>
               </form>

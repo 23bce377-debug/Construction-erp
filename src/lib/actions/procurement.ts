@@ -149,7 +149,7 @@ export async function createPO(data: unknown) {
 }
 
 export async function createPR(data: unknown) {
-  const { orgId } = await getOrgContext();
+  const { orgId, userId } = await getOrgContext();
   const validated = prSchema.parse(data);
 
   // 1. Insert PR Header
@@ -159,6 +159,8 @@ export async function createPR(data: unknown) {
     prNumber: validated.prNumber,
     notes: validated.notes,
     status: 'pending_approval',
+    requestedBy: userId,
+    priority: 'normal',
   }).returning();
 
   // 2. Insert PR Items
@@ -209,12 +211,36 @@ export async function createGRN(data: unknown) {
     await db.insert(inventoryLedger).values({
       orgId,
       siteId: validated.siteId,
+      storeId: validated.storeId,
       itemId: item.itemId,
       transactionType: 'RECEIPT',
       qty: item.acceptedQty,
       uom: item.uom,
       referenceId: newGRN.id,
     });
+
+    // Update inventoryStock
+    const [existing] = await db
+      .select()
+      .from(inventoryStock)
+      .where(and(eq(inventoryStock.storeId, validated.storeId), eq(inventoryStock.itemId, item.itemId)));
+
+    if (existing) {
+      const newQty = (Number(existing.qtyOnHand || 0) + Number(item.acceptedQty)).toString();
+      await db
+        .update(inventoryStock)
+        .set({ qtyOnHand: newQty })
+        .where(and(eq(inventoryStock.storeId, validated.storeId), eq(inventoryStock.itemId, item.itemId)));
+    } else {
+      await db
+        .insert(inventoryStock)
+        .values({
+          storeId: validated.storeId,
+          itemId: item.itemId,
+          qtyOnHand: item.acceptedQty,
+          reservedQty: "0",
+        });
+    }
 
     // Update PO Received Quantities if PO is linked
     if (validated.poId) {
