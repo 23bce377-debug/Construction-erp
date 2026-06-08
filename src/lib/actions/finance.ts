@@ -4,7 +4,7 @@ import { db } from '@/lib/db/db';
 import { measurementBooks, mbEntries, subcontractWorkOrders, invoices, payments, retentionRegister, tdsEntries, sites, vendors } from '@/lib/db/schema';
 import { getOrgContext } from '@/lib/auth-utils';
 import { mbSchema, workOrderSchema, invoiceSchema, paymentSchema } from '@/lib/validations';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getCachedData, invalidateCache } from '@/lib/redis';
@@ -82,6 +82,19 @@ export async function createMeasurementBook(data: unknown) {
   const { orgId } = await getOrgContext();
   const validated = mbSchema.parse(data);
 
+  // Calculate next RA Bill Number
+  const existingMBs = await db
+    .select({ id: measurementBooks.id })
+    .from(measurementBooks)
+    .where(
+      and(
+        eq(measurementBooks.orgId, orgId),
+        eq(measurementBooks.siteId, validated.siteId),
+        eq(measurementBooks.vendorId, validated.vendorId)
+      )
+    );
+  const nextRaBillNumber = existingMBs.length + 1;
+
   // 1. Insert MB Header
   const [newMB] = await db.insert(measurementBooks).values({
     orgId,
@@ -89,6 +102,7 @@ export async function createMeasurementBook(data: unknown) {
     vendorId: validated.vendorId,
     workOrderId: validated.workOrderId,
     mbNumber: validated.mbNumber,
+    raBillNumber: nextRaBillNumber,
     periodStart: validated.periodStart,
     periodEnd: validated.periodEnd,
     status: validated.status || 'draft',
